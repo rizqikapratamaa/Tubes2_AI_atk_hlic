@@ -2,7 +2,7 @@ import numpy as np
 from collections import Counter
 
 class KNN:
-    def __init__(self, n_neighbor = 3, metric = 'euclidean', p = 3, weighed = False):
+    def __init__(self, n_neighbor=3, metric='euclidean', p=3, weighed=False):
         self.n_neighbor = n_neighbor
         self.metric = metric
         self.p = p
@@ -18,8 +18,8 @@ class KNN:
     def _manhattan_distance(self, x1, x2):
         return np.sum(np.abs(np.array(x1) - np.array(x2)))
     
-    def _minkonwski_distance(self, x1, x2, p):
-        return np.sum(np.abs(np.array(x1) - np.array(x2)) ** p) ** p
+    def _minkowski_distance(self, x1, x2, p):
+        return np.sum(np.abs(np.array(x1) - np.array(x2)) ** p) ** (1 / p)
 
     def _most_common_label(self, labels, distances):
         if self.weighed:
@@ -42,13 +42,15 @@ class KNN:
             elif self.metric == 'manhattan':
                 distance = self._manhattan_distance(x, x_train)
             elif self.metric == 'minkowski':
-                distance = self._minkonwski_distance(x, x_train, self.p)
+                distance = self._minkowski_distance(x, x_train, self.p)
             distances.append(distance)
-        k_indices = sorted(range(len(distances)), key=lambda i: distances[i])[:self.n_neighbors] # urutkan jarak dan mendapatkan indeks dari k tetangga terdekat
+        
+        # Ambil indeks dari k tetangga terdekat
+        k_indices = sorted(range(len(distances)), key=lambda i: distances[i])[:self.n_neighbor]
 
-        # ambil label dari k neighbor terdekat
+        # Ambil label dari k neighbor terdekat
         k_nearest_label = [self.Y_train[i] for i in k_indices]
-        k_nearest_distance = [distance[i] for i in k_indices]
+        k_nearest_distance = [distances[i] for i in k_indices]
 
         return self._most_common_label(k_nearest_label, k_nearest_distance)
 
@@ -60,14 +62,13 @@ class KNN:
     
     def get_params(self, deep=False):
         return {
-            "n_neighbors": self.n_neighbors,
+            "n_neighbor": self.n_neighbor,
             "metric": self.metric,
             "p": self.p,
-            "weighted": self.weighted
+            "weighed": self.weighed
         }
 
     def set_params(self, **params):
         for key, value in params.items():
             setattr(self, key, value)
         return self
-        
