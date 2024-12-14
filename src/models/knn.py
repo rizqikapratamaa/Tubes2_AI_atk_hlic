@@ -1,105 +1,219 @@
 import numpy as np
-from collections import Counter
+import pandas as pd
+import pickle
+import concurrent.futures
+from os import cpu_count
+from tqdm import tqdm
+import time
 
 class KNN:
-    def __init__(self, n_neighbor=3, metric='euclidean', p=2, weighed=False):
-        self.n_neighbor = n_neighbor
+    '''
+    KNN is a classification algorithm that uses the k-nearest neighbors algorithm.
+    It is a lazy learning algorithm that stores all instances corresponding to training data in n-dimensional space.
+    When an unknown discrete data is received, it analyzes the closest k number of instances saved (nearest neighbors) and returns the most common class as the prediction and for real-valued data it returns the mean of k nearest neighbors.
+
+    Parameters
+    ----------
+    k : int, default=5
+        Number of neighbors to use by default for :meth:`kneighbors` queries.
+
+    weights : {'uniform', 'distance'} or None, default='uniform'
+        Weight function used in prediction.  Possible values:
+
+        - 'uniform' : uniform weights.  All points in each neighborhood
+          are weighted equally.
+        - 'distance' : weight points by the inverse of their distance.
+          in this case, closer neighbors of a query point will have a
+          greater influence than neighbors which are further away.
+
+    p : int, default=2
+        Power parameter for the Minkowski metric. When p = 1, this is
+        equivalent to using manhattan_distance (l1), and euclidean_distance
+        (l2) for p = 2. For arbitrary p, minkowski_distance (l_p) is used.
+
+    metric : str, default='minkowski'
+        Metric to use for distance computation. Default is "minkowski", which
+        results in the standard Euclidean distance when p = 2.
+
+    n_jobs : int, default=1
+        The number of parallel jobs to run for neighbors search.
+        ``None`` means 1 unless in a :obj:`joblib.parallel_backend` context.
+        ``-1`` means using all processors. See :term:`Glossary <n_jobs>`
+        for more details.
+        Doesn't affect :meth:`fit` method.
+
+    verbose : bool, default=True
+        Whether to print progress messages or not.
+    
+        
+    Methods
+    -------
+    fit(X_train, y_train)
+        Fit the model using X_train as training data and y_train as target values.
+
+    predict(X_test)
+        Predict the class labels for the provided data.
+
+    save(path)
+        Save the model to the given path.
+
+    load(path)
+        Load a model from the given path.
+
+    Examples
+    --------
+    >>> from src.lib.neighbors import KNN
+    >>> from sklearn.datasets import load_iris
+    >>> from sklearn.model_selection import train_test_split
+    >>> from sklearn.metrics import accuracy_score
+    >>> import pandas as pd
+    >>> import numpy as np
+    >>>
+    >>> iris = load_iris()
+    >>> X = pd.DataFrame(iris.data, columns=iris.feature_names)
+    >>> y = pd.Series(iris.target)
+    >>>
+    >>> X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)
+    >>>
+    >>> model = KNN(k=5)
+    >>> model.fit(X_train, y_train)
+    >>> predictions = model.predict(X_test)
+    >>>
+    >>> print(f"Accuracy: {accuracy_score(y_test, predictions)}")
+    '''
+    def __init__(self, k=5, n_jobs=1, metric='minkowski', p=2, weights='uniform', verbose=True):
+
+        # Check for valid inputs
+        if k < 1:
+            raise ValueError("Invalid k. k must be greater than 0.")
+        
+        if not isinstance(k, int):
+            raise ValueError("Invalid k. k must be an integer.")
+        
+        if metric not in ['manhattan', 'euclidean', 'minkowski']:
+            raise ValueError("Invalid metric. Valid metrics are 'manhattan', 'euclidean' and 'minkowski'.")
+        
+        if not isinstance(metric, str):
+            raise ValueError("Invalid metric. metric must be a string.")
+
+        if p < 1:
+            raise ValueError("Invalid p. p must be greater than 0.")
+        
+        if not isinstance(p, int) and not isinstance(p, float):
+            raise ValueError("Invalid p. p must be a number.")
+        
+        if weights is None:
+            self.weights = 'uniform'
+        elif weights not in ['uniform', 'distance']:
+            raise ValueError("Invalid weights. Valid values are 'uniform' and 'distance'.")
+        
+        if not isinstance(weights, str):
+            raise ValueError("Invalid weights. weights must be a string.")
+        
+        if n_jobs < 1 and n_jobs != -1:
+            raise ValueError("Invalid n_jobs. n_jobs must be greater than 0. Use -1 to use all available cores.")
+        
+        if not isinstance(n_jobs, int):
+            raise ValueError("Invalid n_jobs. n_jobs must be an integer.")
+        
+        if not isinstance(verbose, bool):
+            raise ValueError("Invalid verbose. verbose must be a boolean.")
+    
+
+        # Constructor
+        self.k = k
+        self.verbose = verbose
         self.metric = metric
-        self.p = p
-        self.weighed = weighed
-        self.X_train = None
-        self.Y_train = None
-        
-        # Precompute distance function based on metric
-        self._distance_func = {
-            'euclidean': self._euclidean_distance,
-            'manhattan': self._manhattan_distance,
-            'minkowski': lambda x1, x2: self._minkowski_distance(x1, x2, self.p)
-        }.get(metric, self._euclidean_distance)
+        self.weights = weights
 
-    def fit(self, X_train, Y_train):
-        # Convert to numpy arrays for faster computations
-        self.X_train = np.asarray(X_train)
-        self.Y_train = np.asarray(Y_train)
-
-        # Precompute training data characteristics
-        self._train_stats()
-
-    def _train_stats(self):
-        """Precompute and store training data statistics for faster predictions."""
-        # Normalize or standardize data could be added here
-        self.train_mean = np.mean(self.X_train, axis=0)
-        self.train_std = np.std(self.X_train, axis=0)
-        
-        # Optional: Compute KD-tree or Ball tree for faster nearest neighbor search
-        # This is a simplified version. For real optimization, consider scipy's KDTree
-        self._sorted_indices = np.argsort(self.X_train, axis=0)
-
-    def _euclidean_distance(self, x1, x2):
-        return np.sqrt(np.sum((x1 - x2) ** 2))
-    
-    def _manhattan_distance(self, x1, x2):
-        return np.sum(np.abs(x1 - x2))
-    
-    def _minkowski_distance(self, x1, x2, p):
-        return np.sum(np.abs(x1 - x2) ** p) ** (1 / p)
-
-    def _fast_distances(self, x_test):
-        """Compute distances using vectorized operations."""
-        # Compute distances between test point and all training points
-        diff = self.X_train - x_test
-        distances = np.sqrt(np.sum(diff ** 2, axis=1))
-        return distances
-
-    def _most_common_label(self, labels, distances):
-        if self.weighed:
-            # Inverse distance weighting
-            weights = 1 / (distances + 1e-8)
-            weights /= np.sum(weights)
-            unique_labels, label_indices = np.unique(labels, return_inverse=True)
-            weighted_votes = np.zeros(len(unique_labels))
-            
-            for i, label_idx in enumerate(label_indices):
-                weighted_votes[label_idx] += weights[i]
-            
-            return unique_labels[np.argmax(weighted_votes)]
+        # Distance metric
+        if self.metric == 'manhattan':
+            self.p = 1
+        elif self.metric == 'euclidean':
+            self.p = 2
         else:
-            # Standard voting
-            return Counter(labels).most_common(1)[0][0]
+            self.p = p
+
+        # If n_jobs is -1, use all available cores
+        if n_jobs == -1:
+            self.n_jobs = cpu_count()
+        else:
+            self.n_jobs = n_jobs
+
+    def _get_nearest_neighbours(self, test):
+        # Get nearest neighbours using Minkowski distance
+        distances = np.linalg.norm(self.X_train - test, ord=self.p, axis=1)
+        
+        weights = None
+        if self.weights == 'uniform':
+            indices = np.argsort(distances)[:self.k]
+        elif self.weights == 'distance':
+            indices = np.argsort(distances)[:self.k]
+            distances = distances[indices]
+            weights = 1 / distances
+            weights /= np.sum(weights)
+        else:
+            raise ValueError("Invalid weights. Valid values are 'uniform' and 'distance'.")
+        
+        return indices, weights
+    
+    def fit(self, X_train, y_train):
+        # Save train data
+        if isinstance(X_train, pd.DataFrame):
+            if X_train.columns.empty:
+                self.X_train = X_train.values.astype(float)
+            else:
+                self.X_train = X_train.iloc[:, :-1].values.astype(float)
+        else:
+            self.X_train = X_train.astype(float)
+
+        self.y_train = y_train
+        
+    def _predict_instance(self, row):
+        # Predict a single instance
+        indices, weights = self._get_nearest_neighbours(row)
+        labels = [self.y_train.iloc[neighbour] for neighbour in indices]
+        
+        if self.weights == 'uniform':
+            prediction = max(set(labels), key=labels.count)
+        elif self.weights == 'distance':
+            weighted_labels = [weights[i] * labels[i] for i in range(len(labels))]
+            prediction = max(set(weighted_labels), key=weighted_labels.count).astype(int)
+        else:
+            raise ValueError("Invalid weights. Valid values are 'uniform' and 'distance'.")
+        
+        return prediction
 
     def predict(self, X_test):
-        # Convert to numpy array to ensure consistent type
-        X_test = np.asarray(X_test)
-        
-        # Preallocate predictions array
-        predictions = np.zeros(len(X_test), dtype=self.Y_train.dtype)
-        
-        # Vectorized prediction
-        for i, x_test in enumerate(X_test):
-            # Compute distances
-            distances = self._fast_distances(x_test)
-            
-            # Find k nearest neighbors
-            k_indices = np.argpartition(distances, self.n_neighbor)[:self.n_neighbor]
-            
-            # Get labels and distances of k nearest neighbors
-            k_nearest_labels = self.Y_train[k_indices]
-            k_nearest_distances = distances[k_indices]
-            
-            # Predict using voting mechanism
-            predictions[i] = self._most_common_label(k_nearest_labels, k_nearest_distances)
-        
-        return predictions
+        if self.verbose:
+            print(f"Using {self.n_jobs} {'core' if self.n_jobs == 1 else 'cores'} for predictions.")
 
-    def get_params(self):
-        return {
-            "n_neighbor": self.n_neighbor,
-            "metric": self.metric,
-            "p": self.p,
-            "weighed": self.weighed
-        }
+        if isinstance(X_test, pd.DataFrame):
+            if X_test.columns.empty:
+                X_test = X_test.values.astype(float)
+            else:
+                X_test = X_test.iloc[:, :-1].values.astype(float)
+        else:
+            X_test = X_test.astype(float)
 
-    def set_params(self, **params):
-        for key, value in params.items():
-            setattr(self, key, value)
-        return self
+        start_time = time.time()
+
+        with concurrent.futures.ProcessPoolExecutor(max_workers=self.n_jobs) as executor:
+            if self.verbose:
+                results = list(tqdm(executor.map(self._predict_instance, X_test), total=len(X_test)))
+            else:
+                results = list(executor.map(self._predict_instance, X_test))
+
+        elapsed_time = time.time() - start_time
+
+        if self.verbose:
+            print(f"Prediction completed in {elapsed_time:.2f} seconds.")
+
+        return np.array(results)
+    
+    def save(self, path):
+        pickle.dump(self, open(path, 'wb'))
+
+    @staticmethod
+    def load(path):
+        return pickle.load(open(path, 'rb'))
