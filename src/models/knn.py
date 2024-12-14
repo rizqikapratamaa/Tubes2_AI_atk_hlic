@@ -56,7 +56,7 @@ class KNN:
     Example Usage:
     --------------
     ```python
-    from src.lib.neighbors import KNearestNeighbors
+    from src.lib.neighbors import KNN
     from sklearn.datasets import load_iris
     from sklearn.model_selection import train_test_split
     from sklearn.metrics import accuracy_score
@@ -72,7 +72,7 @@ class KNN:
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)
 
     # Initialize model, train, and predict
-    model = KNearestNeighbors(n_neighbors=5)
+    model = KNN()  # Instantiation without parameters
     model.fit(X_train, y_train)
     predictions = model.predict(X_test)
 
