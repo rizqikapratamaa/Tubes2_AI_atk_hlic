@@ -80,8 +80,8 @@ class KNearestNeighbors:
     print(f"Accuracy: {accuracy_score(y_test, predictions)}")
     ```
     """
-    
-    def __init__(self, n_neighbors=5, n_jobs=1, metric='minkowski', p=2, weighting='uniform', show_progress=True):
+
+    def __init__(self, n_neighbors=5, n_jobs=-1, metric='minkowski', p=2, weighting='uniform', show_progress=True):
 
         # Validate input parameters
         if n_neighbors < 1:
