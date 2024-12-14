@@ -1,5 +1,6 @@
 import numpy as np
 from collections import Counter
+from tqdm import tqdm
 from sklearn.preprocessing import LabelEncoder
 
 class Node:
@@ -86,5 +87,6 @@ class ID3DecisionTree:
 
     def predict(self, X):
         X = np.array(X)
-        predictions = np.array([self._traverse_tree(x, self.root) for x in X])
+        predictions = np.array([self._traverse_tree(x, self.root) for x in tqdm(X, desc="Predicting", unit="sample")])
+        
         return self.label_encoder.inverse_transform(predictions)
