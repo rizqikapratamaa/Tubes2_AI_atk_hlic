@@ -6,127 +6,127 @@ from os import cpu_count
 from tqdm import tqdm
 import time
 
-class KNN:
-    '''
-    KNN is a classification algorithm that uses the k-nearest neighbors algorithm.
-    It is a lazy learning algorithm that stores all instances corresponding to training data in n-dimensional space.
-    When an unknown discrete data is received, it analyzes the closest k number of instances saved (nearest neighbors) and returns the most common class as the prediction and for real-valued data it returns the mean of k nearest neighbors.
+class KNearestNeighbors:
+    """
+    KNearestNeighbors is a machine learning algorithm for classification that leverages the concept of finding the k-nearest data points to make predictions. 
+    This algorithm stores the entire training dataset in an n-dimensional space and doesn't learn a model upfront. Instead, it performs computations at the time of prediction.
 
-    Parameters
-    ----------
-    k : int, default=5
-        Number of neighbors to use by default for :meth:`kneighbors` queries.
+    Upon receiving new data, it searches for the k closest neighbors in the stored dataset and:
+    - For classification, it returns the most frequent class among the neighbors.
+    - For regression, it returns the average of the values of the nearest neighbors.
 
-    weights : {'uniform', 'distance'} or None, default='uniform'
-        Weight function used in prediction.  Possible values:
-
-        - 'uniform' : uniform weights.  All points in each neighborhood
-          are weighted equally.
-        - 'distance' : weight points by the inverse of their distance.
-          in this case, closer neighbors of a query point will have a
-          greater influence than neighbors which are further away.
-
-    p : int, default=2
-        Power parameter for the Minkowski metric. When p = 1, this is
-        equivalent to using manhattan_distance (l1), and euclidean_distance
-        (l2) for p = 2. For arbitrary p, minkowski_distance (l_p) is used.
-
-    metric : str, default='minkowski'
-        Metric to use for distance computation. Default is "minkowski", which
-        results in the standard Euclidean distance when p = 2.
-
-    n_jobs : int, default=1
-        The number of parallel jobs to run for neighbors search.
-        ``None`` means 1 unless in a :obj:`joblib.parallel_backend` context.
-        ``-1`` means using all processors. See :term:`Glossary <n_jobs>`
-        for more details.
-        Doesn't affect :meth:`fit` method.
-
-    verbose : bool, default=True
-        Whether to print progress messages or not.
+    Parameters:
+    -----------
+    - **n_neighbors** (int, default=5): 
+      Number of neighbors to consider for the prediction. This value defines how many neighbors will be analyzed to make a decision.
     
-        
-    Methods
-    -------
-    fit(X_train, y_train)
-        Fit the model using X_train as training data and y_train as target values.
+    - **weighting** (str, {'uniform', 'distance'}, default='uniform'): 
+      Defines how the algorithm weights the neighbors. 
+      - 'uniform' means all neighbors have equal weight.
+      - 'distance' gives closer neighbors more influence, weighted by the inverse of their distance.
+    
+    - **p** (int, default=2): 
+      The power parameter for the Minkowski distance metric. When p=1, the metric corresponds to Manhattan distance; p=2 corresponds to Euclidean distance. For other values, Minkowski distance (l_p) is used.
 
-    predict(X_test)
-        Predict the class labels for the provided data.
+    - **metric** (str, default='minkowski'): 
+      The distance metric to compute the distance between data points. By default, the Minkowski metric is used, which defaults to Euclidean distance when p=2.
 
-    save(path)
-        Save the model to the given path.
+    - **n_jobs** (int, default=1): 
+      The number of CPU cores to use for parallel processing. 
+      - Set to -1 to use all available cores. 
+      - 1 means a single core will be used.
 
-    load(path)
-        Load a model from the given path.
+    - **show_progress** (bool, default=True): 
+      A flag to indicate whether progress information should be displayed during execution.
 
-    Examples
+    Methods:
     --------
-    >>> from src.lib.neighbors import KNN
-    >>> from sklearn.datasets import load_iris
-    >>> from sklearn.model_selection import train_test_split
-    >>> from sklearn.metrics import accuracy_score
-    >>> import pandas as pd
-    >>> import numpy as np
-    >>>
-    >>> iris = load_iris()
-    >>> X = pd.DataFrame(iris.data, columns=iris.feature_names)
-    >>> y = pd.Series(iris.target)
-    >>>
-    >>> X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)
-    >>>
-    >>> model = KNN(k=5)
-    >>> model.fit(X_train, y_train)
-    >>> predictions = model.predict(X_test)
-    >>>
-    >>> print(f"Accuracy: {accuracy_score(y_test, predictions)}")
-    '''
-    def __init__(self, k=5, n_jobs=1, metric='minkowski', p=2, weights='uniform', verbose=True):
+    - **fit(X_train, y_train)**: 
+      This method trains the model using the training data (X_train) and their corresponding labels (y_train).
+    
+    - **predict(X_test)**: 
+      Given new data (X_test), this method predicts the class labels (for classification) or values (for regression) based on the learned data.
+    
+    - **save_model(path)**: 
+      Saves the trained model to the specified file path for later use or sharing.
+    
+    - **load_model(path)**: 
+      Loads a saved model from the given file path for making predictions or further training.
 
-        # Check for valid inputs
-        if k < 1:
-            raise ValueError("Invalid k. k must be greater than 0.")
+    Example Usage:
+    --------------
+    ```python
+    from src.lib.neighbors import KNearestNeighbors
+    from sklearn.datasets import load_iris
+    from sklearn.model_selection import train_test_split
+    from sklearn.metrics import accuracy_score
+    import pandas as pd
+    import numpy as np
+
+    # Load dataset
+    iris = load_iris()
+    X = pd.DataFrame(iris.data, columns=iris.feature_names)
+    y = pd.Series(iris.target)
+
+    # Split data into training and test sets
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)
+
+    # Initialize model, train, and predict
+    model = KNearestNeighbors(n_neighbors=5)
+    model.fit(X_train, y_train)
+    predictions = model.predict(X_test)
+
+    # Evaluate accuracy
+    print(f"Accuracy: {accuracy_score(y_test, predictions)}")
+    ```
+    """
+    
+    def __init__(self, n_neighbors=5, n_jobs=1, metric='minkowski', p=2, weighting='uniform', show_progress=True):
+
+        # Validate input parameters
+        if n_neighbors < 1:
+            raise ValueError("Invalid n_neighbors. n_neighbors must be greater than 0.")
         
-        if not isinstance(k, int):
-            raise ValueError("Invalid k. k must be an integer.")
+        if not isinstance(n_neighbors, int):
+            raise ValueError("Invalid n_neighbors. It must be an integer.")
         
         if metric not in ['manhattan', 'euclidean', 'minkowski']:
-            raise ValueError("Invalid metric. Valid metrics are 'manhattan', 'euclidean' and 'minkowski'.")
+            raise ValueError("Invalid metric. Valid metrics are 'manhattan', 'euclidean', and 'minkowski'.")
         
         if not isinstance(metric, str):
-            raise ValueError("Invalid metric. metric must be a string.")
+            raise ValueError("Invalid metric. It must be a string.")
 
         if p < 1:
             raise ValueError("Invalid p. p must be greater than 0.")
         
-        if not isinstance(p, int) and not isinstance(p, float):
+        if not isinstance(p, (int, float)):
             raise ValueError("Invalid p. p must be a number.")
         
-        if weights is None:
-            self.weights = 'uniform'
-        elif weights not in ['uniform', 'distance']:
-            raise ValueError("Invalid weights. Valid values are 'uniform' and 'distance'.")
+        if weighting is None:
+            self.weighting = 'uniform'
+        elif weighting not in ['uniform', 'distance']:
+            raise ValueError("Invalid weighting. Valid values are 'uniform' and 'distance'.")
         
-        if not isinstance(weights, str):
-            raise ValueError("Invalid weights. weights must be a string.")
+        if not isinstance(weighting, str):
+            raise ValueError("Invalid weighting. weighting must be a string.")
         
         if n_jobs < 1 and n_jobs != -1:
-            raise ValueError("Invalid n_jobs. n_jobs must be greater than 0. Use -1 to use all available cores.")
+            raise ValueError("Invalid n_jobs. n_jobs must be greater than 0 or -1 for all cores.")
         
         if not isinstance(n_jobs, int):
             raise ValueError("Invalid n_jobs. n_jobs must be an integer.")
         
-        if not isinstance(verbose, bool):
-            raise ValueError("Invalid verbose. verbose must be a boolean.")
+        if not isinstance(show_progress, bool):
+            raise ValueError("Invalid show_progress. It must be a boolean.")
     
 
-        # Constructor
-        self.k = k
-        self.verbose = verbose
+        # Initialize attributes
+        self.n_neighbors = n_neighbors
+        self.show_progress = show_progress
         self.metric = metric
-        self.weights = weights
+        self.weighting = weighting
 
-        # Distance metric
+        # Set the distance power parameter based on the metric
         if self.metric == 'manhattan':
             self.p = 1
         elif self.metric == 'euclidean':
@@ -134,31 +134,33 @@ class KNN:
         else:
             self.p = p
 
-        # If n_jobs is -1, use all available cores
+        # Set the number of parallel jobs
         if n_jobs == -1:
             self.n_jobs = cpu_count()
         else:
             self.n_jobs = n_jobs
 
-    def _get_nearest_neighbours(self, test):
-        # Get nearest neighbours using Minkowski distance
-        distances = np.linalg.norm(self.X_train - test, ord=self.p, axis=1)
+    def _find_nearest_neighbors(self, query_point):
+        # Compute distances to all training points using the Minkowski distance
+        distances = np.linalg.norm(self.X_train - query_point, ord=self.p, axis=1)
         
         weights = None
-        if self.weights == 'uniform':
-            indices = np.argsort(distances)[:self.k]
-        elif self.weights == 'distance':
-            indices = np.argsort(distances)[:self.k]
-            distances = distances[indices]
+        if self.weighting == 'uniform':
+            # Select the indices of the closest k neighbors
+            neighbor_indices = np.argsort(distances)[:self.n_neighbors]
+        elif self.weighting == 'distance':
+            # Select the closest k neighbors and compute their weights
+            neighbor_indices = np.argsort(distances)[:self.n_neighbors]
+            distances = distances[neighbor_indices]
             weights = 1 / distances
             weights /= np.sum(weights)
         else:
-            raise ValueError("Invalid weights. Valid values are 'uniform' and 'distance'.")
+            raise ValueError("Invalid weighting. Valid values are 'uniform' and 'distance'.")
         
-        return indices, weights
+        return neighbor_indices, weights
     
     def fit(self, X_train, y_train):
-        # Save train data
+        # Store training data
         if isinstance(X_train, pd.DataFrame):
             if X_train.columns.empty:
                 self.X_train = X_train.values.astype(float)
@@ -169,23 +171,25 @@ class KNN:
 
         self.y_train = y_train
         
-    def _predict_instance(self, row):
-        # Predict a single instance
-        indices, weights = self._get_nearest_neighbours(row)
-        labels = [self.y_train.iloc[neighbour] for neighbour in indices]
+    def _predict_single_instance(self, instance):
+        # Predict the label for a single test instance
+        neighbor_indices, weights = self._find_nearest_neighbors(instance)
+        neighbor_labels = [self.y_train.iloc[idx] for idx in neighbor_indices]
         
-        if self.weights == 'uniform':
-            prediction = max(set(labels), key=labels.count)
-        elif self.weights == 'distance':
-            weighted_labels = [weights[i] * labels[i] for i in range(len(labels))]
+        if self.weighting == 'uniform':
+            # Majority voting for uniform weighting
+            prediction = max(set(neighbor_labels), key=neighbor_labels.count)
+        elif self.weighting == 'distance':
+            # Weighted majority voting for distance weighting
+            weighted_labels = [weights[i] * neighbor_labels[i] for i in range(len(neighbor_labels))]
             prediction = max(set(weighted_labels), key=weighted_labels.count).astype(int)
         else:
-            raise ValueError("Invalid weights. Valid values are 'uniform' and 'distance'.")
+            raise ValueError("Invalid weighting. Valid values are 'uniform' and 'distance'.")
         
         return prediction
 
     def predict(self, X_test):
-        if self.verbose:
+        if self.show_progress:
             print(f"Using {self.n_jobs} {'core' if self.n_jobs == 1 else 'cores'} for predictions.")
 
         if isinstance(X_test, pd.DataFrame):
@@ -199,21 +203,21 @@ class KNN:
         start_time = time.time()
 
         with concurrent.futures.ProcessPoolExecutor(max_workers=self.n_jobs) as executor:
-            if self.verbose:
-                results = list(tqdm(executor.map(self._predict_instance, X_test), total=len(X_test)))
+            if self.show_progress:
+                predictions = list(tqdm(executor.map(self._predict_single_instance, X_test), total=len(X_test)))
             else:
-                results = list(executor.map(self._predict_instance, X_test))
+                predictions = list(executor.map(self._predict_single_instance, X_test))
 
         elapsed_time = time.time() - start_time
 
-        if self.verbose:
+        if self.show_progress:
             print(f"Prediction completed in {elapsed_time:.2f} seconds.")
 
-        return np.array(results)
+        return np.array(predictions)
     
-    def save(self, path):
+    def save_model(self, path):
         pickle.dump(self, open(path, 'wb'))
 
     @staticmethod
-    def load(path):
+    def load_model(path):
         return pickle.load(open(path, 'rb'))
