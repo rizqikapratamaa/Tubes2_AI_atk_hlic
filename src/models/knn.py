@@ -8,80 +8,38 @@ import time
 
 class KNN:
     """
-    KNearestNeighbors is a machine learning algorithm for classification that leverages the concept of finding the k-nearest data points to make predictions. 
-    This algorithm stores the entire training dataset in an n-dimensional space and doesn't learn a model upfront. Instead, it performs computations at the time of prediction.
+    K-Nearest Neighbors (KNN) Classifier implementation.
 
-    Upon receiving new data, it searches for the k closest neighbors in the stored dataset and:
-    - For classification, it returns the most frequent class among the neighbors.
-    - For regression, it returns the average of the values of the nearest neighbors.
-
-    Parameters:
-    -----------
-    - **n_neighbors** (int, default=5): 
-      Number of neighbors to consider for the prediction. This value defines how many neighbors will be analyzed to make a decision.
+    This class implements the KNN algorithm, which can be used for classification tasks.
+    It includes functionality to:
+    - Choose the distance metric (Euclidean, Manhattan, or Minkowski)
+    - Specify the number of neighbors (k)
+    - Choose weighting strategy ('uniform' or 'distance') for neighbors
+    - Enable parallel prediction using multiple CPU cores for faster computation
     
-    - **weighting** (str, {'uniform', 'distance'}, default='uniform'): 
-      Defines how the algorithm weights the neighbors. 
-      - 'uniform' means all neighbors have equal weight.
-      - 'distance' gives closer neighbors more influence, weighted by the inverse of their distance.
-    
-    - **p** (int, default=2): 
-      The power parameter for the Minkowski distance metric. When p=1, the metric corresponds to Manhattan distance; p=2 corresponds to Euclidean distance. For other values, Minkowski distance (l_p) is used.
-
-    - **metric** (str, default='minkowski'): 
-      The distance metric to compute the distance between data points. By default, the Minkowski metric is used, which defaults to Euclidean distance when p=2.
-
-    - **n_jobs** (int, default=1): 
-      The number of CPU cores to use for parallel processing. 
-      - Set to -1 to use all available cores. 
-      - 1 means a single core will be used.
-
-    - **show_progress** (bool, default=True): 
-      A flag to indicate whether progress information should be displayed during execution.
-
-    Methods:
-    --------
-    - **fit(X_train, y_train)**: 
-      This method trains the model using the training data (X_train) and their corresponding labels (y_train).
-    
-    - **predict(X_test)**: 
-      Given new data (X_test), this method predicts the class labels (for classification) or values (for regression) based on the learned data.
-    
-    - **save_model(path)**: 
-      Saves the trained model to the specified file path for later use or sharing.
-    
-    - **load_model(path)**: 
-      Loads a saved model from the given file path for making predictions or further training.
-
-    Example Usage:
-    --------------
-    ```python
-    from src.lib.neighbors import KNN
-    from sklearn.datasets import load_iris
-    from sklearn.model_selection import train_test_split
-    from sklearn.metrics import accuracy_score
-    import pandas as pd
-    import numpy as np
-
-    # Load dataset
-    iris = load_iris()
-    X = pd.DataFrame(iris.data, columns=iris.feature_names)
-    y = pd.Series(iris.target)
-
-    # Split data into training and test sets
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)
-
-    # Initialize model, train, and predict
-    model = KNN()  # Instantiation without parameters
-    model.fit(X_train, y_train)
-    predictions = model.predict(X_test)
-
-    # Evaluate accuracy
-    print(f"Accuracy: {accuracy_score(y_test, predictions)}")
-    ```
+    Attributes:
+        k (int): The number of nearest neighbors to use for classification.
+        metric (str): The distance metric to use for finding neighbors.
+        p (int or float): The power parameter for Minkowski distance (relevant if metric is Minkowski).
+        weights (str): The weighting strategy for neighbors ('uniform' or 'distance').
+        n_jobs (int): The number of parallel jobs to use for predictions (-1 uses all CPU cores).
+        verbose (bool): Whether to output progress and time logs for predictions.
     """
     def __init__(self, k=5, n_jobs=1, metric='minkowski', p=2, weights='uniform', verbose=True):
-
+        """
+        Initialize the KNN classifier with the given hyperparameters.
+        
+        Args:
+            k (int): The number of nearest neighbors to consider for classification (default is 5).
+            n_jobs (int): Number of parallel jobs for prediction (-1 for all cores, default is 1).
+            metric (str): The distance metric ('minkowski', 'euclidean', 'manhattan', default is 'minkowski').
+            p (int or float): The power parameter for Minkowski distance (default is 2, for Euclidean).
+            weights (str): The weighting strategy for neighbors ('uniform' or 'distance').
+            verbose (bool): Whether to display progress and time logs (default is True).
+        
+        Raises:
+            ValueError: If any of the input parameters are invalid (e.g., non-integer k, invalid metric).
+        """
         # Validate inputs
         if k < 1:
             raise ValueError("The value of k must be greater than 0.")
@@ -142,7 +100,18 @@ class KNN:
 
 
     def _get_nearest_neighbors(self, test):
-    # Calculate distances to nearest neighbors using Minkowski distance
+        """
+        Find the k-nearest neighbors for a given test instance.
+        
+        This function computes the distance from the test instance to all training instances,
+        sorts them, and selects the k nearest neighbors based on the chosen distance metric.
+        
+        Args:
+            test (numpy.ndarray): The test instance (row) for which nearest neighbors are to be found.
+        
+        Returns:
+            tuple: A tuple containing the indices of the nearest neighbors and their corresponding weights.
+        """
         distances = np.linalg.norm(self.X_train - test, ord=self.p, axis=1)
         
         weights = None
@@ -164,7 +133,16 @@ class KNN:
 
     
     def fit(self, X_train, y_train):
-        # Save train data
+        """
+        Train the KNN classifier using the provided training data.
+
+        Args:
+            X_train (numpy.ndarray or pd.DataFrame): Feature matrix for the training data.
+            y_train (numpy.ndarray or pd.Series): Labels for the training data.
+        
+        Raises:
+            ValueError: If the input data is not of the correct type.
+        """
         if isinstance(X_train, pd.DataFrame):
             if X_train.columns.empty:
                 self.X_train = X_train.values.astype(float)
@@ -177,6 +155,15 @@ class KNN:
        
         
     def _predict_instance(self, row):
+        """ 
+        Make a prediction for a single test instance.
+        
+        Args:
+            row (numpy.ndarray): A single test instance to classify.
+        
+        Returns:
+            int: The predicted class label.
+        """
         # Make a prediction for a single instance
         indices, weights = self._get_nearest_neighbors(row)
         
@@ -197,6 +184,15 @@ class KNN:
 
 
     def predict(self, X_test):
+        """
+        Predict the labels for a given test dataset.
+        
+        Args:
+            X_test (numpy.ndarray or pd.DataFrame): The feature matrix of the test dataset.
+        
+        Returns:
+            numpy.ndarray: Predicted labels for all test instances.
+        """
         if self.verbose:
             print(f"Making predictions using {self.n_jobs} {'core' if self.n_jobs == 1 else 'cores'}.")
 
@@ -227,9 +223,24 @@ class KNN:
         return np.array(results)
     
     def save(self, path):
+        """
+        Save the trained KNN model to a file.
+
+        Args:
+            path (str): The file path where the model should be saved.
+        """
         pickle.dump(self, open(path, 'wb'))
 
     @staticmethod
     def load(path):
+        """
+        Load a trained KNN model from a file.
+
+        Args:
+            path (str): The file path from which to load the model.
+        
+        Returns:
+            KNN: The loaded KNN model.
+        """
         return pickle.load(open(path, 'rb'))
         
