@@ -1,6 +1,5 @@
+<h3 align="center">Tugas Besar 2 IF3170 Intelijensi Artifisial</h3>
 <h1 align="center">Machine Learning Algorithm Implementation 📈📊</h1>
-
-### Tugas Besar 2 IF3170 Intelijensi Artifisial
 
 Machine learning is a branch of artificial intelligence that enables systems to learn from data to make predictions or decisions without requiring explicit programming. In this project, the implementation of machine learning algorithms is conducted using the UNSW-NB15 dataset, which contains network traffic data, including various types of cyberattacks and normal activities.
 
