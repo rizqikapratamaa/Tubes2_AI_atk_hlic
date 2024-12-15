@@ -1,7 +1,6 @@
 import numpy as np
 from collections import Counter
 from tqdm import tqdm
-from sklearn.preprocessing import LabelEncoder
 
 class Node:
     def __init__(self, feature=None, threshold=None, left=None, right=None, value=None):
@@ -11,12 +10,26 @@ class Node:
         self.right = right
         self.value = value
 
+class CustomLabelEncoder:
+    def __init__(self):
+        self.classes_ = None
+        self.class_to_idx = {}
+        
+    def fit_transform(self, y):
+        unique_classes = list(set(y))
+        self.classes_ = unique_classes
+        self.class_to_idx = {c: i for i, c in enumerate(unique_classes)}
+        return np.array([self.class_to_idx[yi] for yi in y])
+        
+    def inverse_transform(self, y):
+        return np.array([self.classes_[yi] for yi in y])
+
 class ID3DecisionTree:
     def __init__(self, max_depth=10, min_samples_split=2):
         self.max_depth = max_depth
         self.min_samples_split = min_samples_split
         self.root = None
-        self.label_encoder = LabelEncoder()
+        self.label_encoder = CustomLabelEncoder()
 
     def entropy(self, y):
         _, counts = np.unique(y, return_counts=True)
@@ -30,7 +43,6 @@ class ID3DecisionTree:
         
         n_features = X.shape[1]
         
-        # Vectorized computation for each feature
         for feature_idx in range(n_features):
             thresholds = np.percentile(X[:, feature_idx], [25, 50, 75])
             for threshold in thresholds:
@@ -57,8 +69,8 @@ class ID3DecisionTree:
         n_samples, _ = X.shape
         
         if (self.max_depth is not None and depth >= self.max_depth) or \
-        n_samples < self.min_samples_split or \
-        len(np.unique(y)) == 1:
+           n_samples < self.min_samples_split or \
+           len(np.unique(y)) == 1:
             return Node(value=Counter(y).most_common(1)[0][0])
         
         feature, threshold = self.find_best_split(X, y)
@@ -69,7 +81,6 @@ class ID3DecisionTree:
         left_mask = X[:, feature] <= threshold
         right_mask = ~left_mask
         
-        # Tambahkan pemeriksaan tambahan
         if left_mask.sum() == 0 or right_mask.sum() == 0:
             return Node(value=Counter(y).most_common(1)[0][0])
         
@@ -77,7 +88,6 @@ class ID3DecisionTree:
         right = self.build_tree(X[right_mask], y[right_mask], depth + 1)
         
         return Node(feature, threshold, left, right)
-
 
     def fit(self, X, y):
         X = np.array(X)
@@ -94,5 +104,4 @@ class ID3DecisionTree:
     def predict(self, X):
         X = np.array(X)
         predictions = np.array([self._traverse_tree(x, self.root) for x in tqdm(X, desc="Predicting", unit="sample")])
-        
         return self.label_encoder.inverse_transform(predictions)
