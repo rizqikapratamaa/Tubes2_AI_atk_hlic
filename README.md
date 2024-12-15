@@ -1,5 +1,5 @@
-# Tubes2_AI_atk_hlc
-> Implementasi Algoritma Pembelajaran Mesin
+<h3 align="center">Tugas Besar 2 IF3170 Intelijensi Artifisial</h3>
+<h1 align="center">Machine Learning Algorithm Implementation 📈📊</h1>
 
 <div align="center">
   <img src="./docs/overview.png" alt="Overview" width="600"/>
@@ -50,8 +50,6 @@ Notebook-v2 mengadopsi pendekatan yang lebih modular dan fleksibel dengan menggu
 
 ## 📃 Laporan
 Dalam laporan ini, kami membahas tahapan pembersihan data, transformasi, pemilihan fitur, serta pelatihan dan validasi model, baik menggunakan implementasi manual (from scratch) maupun pustaka scikit-learn. Hasil eksperimen dan analisis dapat [diakses di sini](./docs/Tubes2-atk_hlic.pdf).
-<h3 align="center">Tugas Besar 2 IF3170 Intelijensi Artifisial</h3>
-<h1 align="center">Machine Learning Algorithm Implementation 📈📊</h1>
 
 
 ## Requirements 
